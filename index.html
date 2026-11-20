@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employee Records | CRUD System</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#20283a;--muted:#697386;--accent:#5267d8;--accent2:#4053bd;--line:#e5e9f2;--danger:#d94b59;--shadow:0 12px 35px rgba(31,45,90,.08)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(120deg,#293b75,#596edb);color:white;padding:28px 18px}
+.head{max-width:1100px;margin:auto}
+header h1{margin:0 0 7px;font-size:clamp(23px,4vw,32px)}
+header p{margin:0;color:#e2e7ff;font-size:14px}
+main{max-width:1100px;margin:25px auto;padding:0 16px 40px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.stat,.panel{background:var(--card);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow)}
+.stat{padding:17px 19px}
+.stat span{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}
+.stat strong{font-size:25px}
+.layout{display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start}
+.panel{padding:20px}
+h2{font-size:18px;margin:0 0 16px}
+label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
+input,select{width:100%;padding:11px 12px;border:1px solid #d9deea;border-radius:9px;font-size:14px;background:white;color:var(--ink)}
+input:focus,select:focus{outline:2px solid #cbd3ff;border-color:var(--accent)}
+.actions{display:flex;gap:8px;margin-top:17px}
+button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;font-size:13px}
+.primary{background:var(--accent);color:white;flex:1}.primary:hover{background:var(--accent2)}
+.secondary{background:#edf0fa;color:#38466f}
+.danger{background:#fff0f1;color:var(--danger)}
+.toolbar{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-bottom:14px}
+.toolbar input{max-width:260px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:620px}
+th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);font-size:13px}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+td .name{font-weight:700}
+.status{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700;background:#e8f7ef;color:#20834e}
+.status.inactive{background:#f0f1f5;color:#687184}
+.row-actions{display:flex;gap:6px}
+.row-actions button{padding:7px 9px}
+.empty{text-align:center;color:var(--muted);padding:28px 10px}
+.note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:14px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.stats{gap:9px}.stat{padding:14px}.stat strong{font-size:21px}}
+@media(max-width:420px){.stats{grid-template-columns:1fr 1fr}.stat:last-child{grid-column:span 2}.toolbar{align-items:stretch;flex-direction:column}.toolbar input{max-width:none}}
+</style>
+</head>
+<body>
+<header><div class="head"><h1>Employee Records Management</h1><p>A simple CRUD system — Create, Read, Update, and Delete employee records.</p></div></header>
+<main>
+  <section class="stats">
+    <div class="stat"><span>Total Employees</span><strong id="totalCount">0</strong></div>
+    <div class="stat"><span>Active Employees</span><strong id="activeCount">0</strong></div>
+    <div class="stat"><span>Inactive Employees</span><strong id="inactiveCount">0</strong></div>
+  </section>
+  <section class="layout">
+    <div class="panel">
+      <h2 id="formTitle">Add Employee</h2>
+      <form id="employeeForm">
+        <input type="hidden" id="recordId">
+        <label for="employeeId">Employee ID</label>
+        <input id="employeeId" placeholder="e.g. EMP-001" required maxlength="20">
+        <label for="fullName">Full Name</label>
+        <input id="fullName" placeholder="Enter full name" required maxlength="70">
+        <label for="position">Position</label>
+        <input id="position" placeholder="e.g. Hairdresser" required maxlength="50">
+        <label for="rate">Daily Rate (₱)</label>
+        <input id="rate" type="number" min="0" step="0.01" placeholder="e.g. 500" required>
+        <label for="status">Employment Status</label>
+        <select id="status"><option>Active</option><option>Inactive</option></select>
+        <div class="actions">
+          <button class="primary" type="submit" id="saveBtn">Save Employee</button>
+          <button class="secondary" type="button" id="cancelBtn" hidden>Cancel</button>
+        </div>
+      </form>
+      <p class="note">Records are saved in this browser using local storage. Use the same browser and device to see them again.</p>
+    </div>
+    <div class="panel">
+      <div class="toolbar"><h2 style="margin:0">Employee List</h2><input id="search" type="search" placeholder="Search employee..."></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Employee</th><th>Position</th><th>Daily Rate</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="employeeRows"></tbody>
+        </table>
+        <div id="emptyState" class="empty">No employee records yet. Add your first employee using the form.</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>Employee Records Management System · Single-file HTML, CSS and JavaScript</footer>
+<script>
+const STORAGE_KEY = "employeeCrudRecords_v1";
+let employees = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+const $ = id => document.getElementById(id);
+const money = value => "₱" + Number(value || 0).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function saveToStorage(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(employees)); }
+function render(){
+  const term = $("search").value.trim().toLowerCase();
+  const shown = employees.filter(e => [e.employeeId,e.fullName,e.position,e.status].some(v => String(v).toLowerCase().includes(term)));
+  $("employeeRows").innerHTML = "";
+  $("emptyState").style.display = shown.length ? "none" : "block";
+  shown.forEach(e => {
+    const tr = document.createElement("tr");
+    const values = [e.employeeId,e.fullName,e.position,money(e.rate),e.status];
+    values.forEach((value,index)=>{
+      const td=document.createElement("td");
+      if(index===1){const span=document.createElement("span");span.className="name";span.textContent=value;td.appendChild(span);}
+      else if(index===4){const span=document.createElement("span");span.className="status"+(value==="Inactive"?" inactive":"");span.textContent=value;td.appendChild(span);}
+      else td.textContent=value;
+      tr.appendChild(td);
+    });
+    const action=document.createElement("td");
+    const group=document.createElement("div");group.className="row-actions";
+    const edit=document.createElement("button");edit.type="button";edit.className="secondary";edit.textContent="Edit";edit.onclick=()=>editEmployee(e.id);
+    const del=document.createElement("button");del.type="button";del.className="danger";del.textContent="Delete";del.onclick=()=>deleteEmployee(e.id);
+    group.append(edit,del);action.appendChild(group);tr.appendChild(action);$("employeeRows").appendChild(tr);
+  });
+  $("totalCount").textContent=employees.length;
+  $("activeCount").textContent=employees.filter(e=>e.status==="Active").length;
+  $("inactiveCount").textContent=employees.filter(e=>e.status==="Inactive").length;
+}
+function resetForm(){
+  $("employeeForm").reset();$("recordId").value="";$("formTitle").textContent="Add Employee";
+  $("saveBtn").textContent="Save Employee";$("cancelBtn").hidden=true;
+}
+$("employeeForm").addEventListener("submit",event=>{
+  event.preventDefault();
+  const id=$("recordId").value;
+  const employee={
+    id:id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+    employeeId:$("employeeId").value.trim(),
+    fullName:$("fullName").value.trim(),
+    position:$("position").value.trim(),
+    rate:Number($("rate").value),
+    status:$("status").value
+  };
+  if(employees.some(e=>e.employeeId.toLowerCase()===employee.employeeId.toLowerCase() && e.id!==id)){
+    alert("That Employee ID already exists. Please use a different ID.");return;
+  }
+  if(id){employees=employees.map(e=>e.id===id?employee:e);}
+  else employees.push(employee);
+  saveToStorage();resetForm();render();
+});
+function editEmployee(id){
+  const e=employees.find(item=>item.id===id);if(!e)return;
+  $("recordId").value=e.id;$("employeeId").value=e.employeeId;$("fullName").value=e.fullName;
+  $("position").value=e.position;$("rate").value=e.rate;$("status").value=e.status;
+  $("formTitle").textContent="Update Employee";$("saveBtn").textContent="Update Record";$("cancelBtn").hidden=false;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function deleteEmployee(id){
+  const e=employees.find(item=>item.id===id);if(!e)return;
+  if(!confirm("Delete the record for "+e.fullName+"? This action cannot be undone."))return;
+  employees=employees.filter(item=>item.id!==id);saveToStorage();
+  if($("recordId").value===id)resetForm();render();
+}
+$("cancelBtn").addEventListener("click",resetForm);
+$("search").addEventListener("input",render);
+render();
+</script>
+</body>
+</html>
